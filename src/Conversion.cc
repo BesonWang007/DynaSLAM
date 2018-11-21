@@ -2,7 +2,7 @@
 * This file is part of DynaSLAM.
 * Copyright (C) 2018 Berta Bescos <bbescos at unizar dot es> (University of Zaragoza)
 * For more information see <https://github.com/bertabescos/DynaSLAM>.
-*
+* c++ 调用 Python 以及数据类型转换  
 */
 
 
