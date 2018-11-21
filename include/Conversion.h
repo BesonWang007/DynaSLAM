@@ -2,7 +2,7 @@
 * This file is part of DynaSLAM.
 * Copyright (C) 2018 Berta Bescos <bbescos at unizar dot es> (University of Zaragoza)
 * For more information see <https://github.com/bertabescos/DynaSLAM>.
-*
+*  c++ 调用 Python 以及数据类型转换  
 */
 
 
@@ -10,7 +10,7 @@
 
 #define CONVERSION_H_
 
-#include <Python.h>
+#include <Python.h> // 调用 python形式 的 mask-rcnn
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/core/core.hpp>
@@ -30,6 +30,7 @@ class PyAllowThreads;
 
 class PyEnsureGIL;
 
+// python 代码
 #define ERRWRAP2(expr) \
 try \
 { \
