@@ -1,21 +1,6 @@
 /**
 * This file is part of ORB-SLAM2.
-*
-* Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
-* For more information see <https://github.com/raulmur/ORB_SLAM2>
-*
-* ORB-SLAM2 is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* ORB-SLAM2 is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with ORB-SLAM2. If not, see <http://www.gnu.org/licenses/>.
+* 回环检测线程
 */
 
 #ifndef LOOPCLOSING_H
@@ -45,9 +30,9 @@ class LoopClosing
 {
 public:
 
-    typedef pair<set<KeyFrame*>,int> ConsistentGroup;    
+    typedef pair<set<KeyFrame*>,int> ConsistentGroup;    // 具有关联性的候选帧
     typedef map<KeyFrame*,g2o::Sim3,std::less<KeyFrame*>,
-        Eigen::aligned_allocator<std::pair<const KeyFrame*, g2o::Sim3> > > KeyFrameAndPose;
+    Eigen::aligned_allocator<std::pair<const KeyFrame*, g2o::Sim3> > > KeyFrameAndPose;// 帧 对应的 sim3位姿
 
 public:
 
@@ -57,14 +42,14 @@ public:
 
     void SetLocalMapper(LocalMapping* pLocalMapper);
 
-    // Main function
+    // Main function  线程 主函数===============
     void Run();
 
     void InsertKeyFrame(KeyFrame *pKF);
 
     void RequestReset();
 
-    // This function will run in a separate thread
+    // This function will run in a separate thread 全局优化
     void RunGlobalBundleAdjustment(unsigned long nLoopKF);
 
     bool isRunningGBA(){
@@ -86,9 +71,9 @@ protected:
 
     bool CheckNewKeyFrames();
 
-    bool DetectLoop();
+    bool DetectLoop();// 关键帧数据库 闭环检测====
 
-    bool ComputeSim3();
+    bool ComputeSim3();// 计算闭环处的 相似变换===
 
     void SearchAndFuse(const KeyFrameAndPose &CorrectedPosesMap);
 
@@ -116,19 +101,19 @@ protected:
 
     std::mutex mMutexLoopQueue;
 
-    // Loop detector parameters
+    // Loop detector parameters  闭环检测参数===
     float mnCovisibilityConsistencyTh;
 
-    // Loop detector variables
-    KeyFrame* mpCurrentKF;
-    KeyFrame* mpMatchedKF;
-    std::vector<ConsistentGroup> mvConsistentGroups;
+    // Loop detector variables  闭环检测变量====
+    KeyFrame* mpCurrentKF;// 当前帧
+    KeyFrame* mpMatchedKF;// 匹配的关键帧
+    std::vector<ConsistentGroup> mvConsistentGroups;// 具有连续性的候选帧 群组
     std::vector<KeyFrame*> mvpEnoughConsistentCandidates;
     std::vector<KeyFrame*> mvpCurrentConnectedKFs;
-    std::vector<MapPoint*> mvpCurrentMatchedPoints;
-    std::vector<MapPoint*> mvpLoopMapPoints;
+    std::vector<MapPoint*> mvpCurrentMatchedPoints;//当前帧 闭环检测得到的 匹配地图点
+    std::vector<MapPoint*> mvpLoopMapPoints;// 当前帧 相邻关键帧上的 地图点 闭环处的地图点
     cv::Mat mScw;
-    g2o::Sim3 mg2oScw;
+    g2o::Sim3 mg2oScw;//相似变换
 
     long unsigned int mLastLoopKFid;
 
@@ -140,7 +125,7 @@ protected:
     std::thread* mpThreadGBA;
 
     // Fix scale in the stereo/RGB-D case
-    bool mbFixScale;
+    bool mbFixScale;// 双目/深度 固定的 空间尺度
 
 
     bool mnFullBAIdx;
