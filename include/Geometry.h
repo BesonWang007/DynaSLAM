@@ -16,9 +16,9 @@
 #include <opencv2/features2d/features2d.hpp>
 #include "Frame.h"
 
-#define MAX_DB_SIZE 20// 数据库 20类物体  voc数据集???
+#define MAX_DB_SIZE 20// 数据库   最近20个关键帧集合
 #define MAX_REF_FRAMES 5
-#define ELEM_INITIAL_MAP 5
+#define ELEM_INITIAL_MAP 5 // 初始元素数量
 #define MIN_DEPTH_THRESHOLD 0.2
 
 namespace DynaSLAM
@@ -31,8 +31,8 @@ private:
     class DynKeyPoint // 关键点
     {
     public:
-        cv::Point2i mPoint;     // 2d像素点
-        int mRefFrameLabel;// 标签
+        cv::Point2i mPoint;// 2d像素点
+        int mRefFrameLabel;// 参考帧 标签
     };
 
     class DataBase// 数据库
@@ -58,12 +58,12 @@ private:
     void FillRGBD(const ORB_SLAM2::Frame &currentFrame,
                                 cv::Mat &mask,cv::Mat &imGray,cv::Mat &imDepth,cv::Mat &imRGB);// 多一张彩色图==
 
-// 利用深度数据对关键点进行区域增长更新================
+// 利用深度数据对 运动关键点进行区域增长更新================
     cv::Mat DepthRegionGrowing(const vector<DynKeyPoint> &vDynPoints,
                                                                 const cv::Mat &imDepth);
 
-    bool isRotationMatrix(const cv::Mat &R);
-    cv::Mat rotm2euler(const cv::Mat &R);// 旋转矩阵 转 欧拉角
+    bool isRotationMatrix(const cv::Mat &R);// 判断是否是旋转矩阵=====
+    cv::Mat rotm2euler(const cv::Mat &R);   // 旋转矩阵 转 欧拉角
 
 // 阈值区域增长======
     cv::Mat RegionGrowing(const cv::Mat &Image,
@@ -87,7 +87,7 @@ private:
 
     DataBase mDB;
 
-    cv::Mat vAllPixels;
+    cv::Mat vAllPixels;// cv::Mat(640*480,2,CV_32F);// 两列  存储行列id
 
     bool IsInFrame(const float &x, const float &y, 
                                      const ORB_SLAM2::Frame &Frame);
@@ -98,15 +98,20 @@ private:
                                                                                    const int &x, const int &y, int &_x, int &_y);
 
 public:
-    Geometry();
+    Geometry();// 初始化 vAllPixels 
     ~Geometry() = default;
-// 几何模型修正 ====================
-    void GeometricModelCorrection(const ORB_SLAM2::Frame &currentFrame, 
-                                                                       cv::Mat &imDepth, cv::Mat &mask);
+    
+// 融合 几何运动检测点集  和 mask分割信息============
+    void GeometricModelCorrection(const ORB_SLAM2::Frame &currentFrame, // 定位等信息
+                                  cv::Mat &imDepth,// 深度图
+                                  cv::Mat &mask);  // mask 类别掩码
 // 画框 ========?
     void InpaintFrames(const ORB_SLAM2::Frame &currentFrame, 
-                                             cv::Mat &imGray, cv::Mat &imDepth, cv::Mat &imRGB, cv::Mat &mask);
-// 更新数据库=====
+                        cv::Mat &imGray, 
+                        cv::Mat &imDepth, 
+                        cv::Mat &imRGB, 
+                        cv::Mat &mask);
+// 使用关键帧更新数据库=====
     void GeometricModelUpdateDB(const ORB_SLAM2::Frame &mCurrentFrame);
 };
 
