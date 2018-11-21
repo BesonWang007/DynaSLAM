@@ -1,4 +1,5 @@
 """
+coco数据集 api 对 模型进行训练 评估
 Mask R-CNN
 Configurations and data loading code for MS COCO.
 
