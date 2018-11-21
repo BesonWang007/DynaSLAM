@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+#  Mask类  mask-rcnn网络初始化 获取结果mask
 import os
 import sys
 import random
