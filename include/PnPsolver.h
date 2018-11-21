@@ -1,6 +1,6 @@
 /**
 * This file is part of ORB-SLAM2.
- 2d-3d点对求解变换
+ 2d-3d点对求解变换 随机采样 矩阵线性方程式 求解 只在重定位里用了
 矩阵线性方程式求解，G2O优化式求解
 这个PnP Solver 只在重定位里用了
 
