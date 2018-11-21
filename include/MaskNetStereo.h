@@ -1,3 +1,7 @@
+/*
+ 对两张图像进行mask-rcnn 语义分割，传入两张图像，返回两张语义分割结果图
+
+*/
 #ifndef __MASKNETSTEREO_H
 #define __MASKNETSTEREO_H
 
@@ -43,6 +47,8 @@ public:
 		delete this->net;
 		delete this->cvt;
 	};
+// 对两张图像进行mask-rcnn 语义分割，传入两张图像，返回两张语义分割结果图
+// 一个是函数返回，一个是 引用参数返回
         cv::Mat GetSegmentation(const cv::Mat &image1, const cv::Mat &image2, cv::Mat &MaskRight);
 };
 
