@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import sys
 import random
@@ -11,13 +12,14 @@ import coco
 import utils
 import model as modellib
 
+# 初始化mask-rcnn网络=============
 print 'Initializing Mask RCNN network...'
 # Root directory of the project
 ROOT_DIR = os.getcwd()
 ROOT_DIR = "./src/python"
 print(ROOT_DIR)
 
-# Directory to save logs and trained model
+# Directory to save logs and trained model  日志和 训练模型
 MODEL_DIR = os.path.join(ROOT_DIR, "logs")
 
 # Path to trained weights file
@@ -33,7 +35,7 @@ config = InferenceConfig()
 config.display()
 
 
-# Create model object in inference mode.
+# Create model object in inference mode. 创建前向推理模型==只检测===
 model = modellib.MaskRCNN(mode="inference", model_dir=MODEL_DIR, config=config)
 
 # Load weights trained on MS-COCO
@@ -55,8 +57,9 @@ class_names = ['BG', 'person', 'bicycle', 'car', 'motorcycle', 'airplane',
        'teddy bear', 'hair drier', 'toothbrush']
 print 'Initialated Mask RCNN network...'
 
+# 获取语义分割图像
 def GetDynSeg(image,image2=None):
-	h = image.shape[0]
+	h = image.shape[0]# 图像尺寸====
 	w = image.shape[1]
 	if len(image.shape) == 2:
 		im = np.zeros((h,w,3))
@@ -67,15 +70,16 @@ def GetDynSeg(image,image2=None):
 	#if image2 is not None:
 	#	args+=[image2]
 	# Run detection
+         # 对彩色图进行 检测====================
 	results = model.detect([image], verbose=0)
 	# Visualize results
-	r = results[0]
+	r = results[0] # 结果
 	i = 0
-	mask = np.zeros((h,w))
+	mask = np.zeros((h,w)) # 默认为0
 	for roi in r['rois']:
 		if class_names[r['class_ids'][i]] == 'person':
 			image_m = r['masks'][:,:,i]
-			mask[image_m == 1] = 1.
+			mask[image_m == 1] = 1. # 置为1
 		if class_names[r['class_ids'][i]] == 'bicycle':
 			image_m = r['masks'][:,:,i]
 			mask[image_m == 1] = 1.
