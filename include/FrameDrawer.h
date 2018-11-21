@@ -1,21 +1,6 @@
 /**
 * This file is part of ORB-SLAM2.
-*
-* Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
-* For more information see <https://github.com/raulmur/ORB_SLAM2>
-*
-* ORB-SLAM2 is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* ORB-SLAM2 is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with ORB-SLAM2. If not, see <http://www.gnu.org/licenses/>.
+* 关键帧显示 内容生成 图像+关键点+文字
 */
 
 #ifndef FRAMEDRAWER_H
@@ -29,8 +14,6 @@
 #include<opencv2/features2d/features2d.hpp>
 
 #include<mutex>
-
-
 namespace ORB_SLAM2
 {
 
@@ -40,32 +23,32 @@ class Viewer;
 class FrameDrawer
 {
 public:
-    FrameDrawer(Map* pMap);
+    FrameDrawer(Map* pMap);// 类构造函数
 
     // Update info from the last processed frame.
-    void Update(Tracking *pTracker);
+    void Update(Tracking *pTracker);// 从 track 对象更新数据到 本类内
 
     // Draw last processed frame.
-    cv::Mat DrawFrame();
+    cv::Mat DrawFrame();// 显示关键帧
 
 protected:
 
-    void DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText);
+    void DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText);//显示 文本信息
 
     // Info of the frame to be drawn
     cv::Mat mIm;
     int N;
-    vector<cv::KeyPoint> mvCurrentKeys;
-    vector<bool> mvbMap, mvbVO;
-    bool mbOnlyTracking;
+    vector<cv::KeyPoint> mvCurrentKeys;// 当前帧关键点
+    vector<bool> mvbMap, mvbVO;           // 是否有对应的地图点
+    bool mbOnlyTracking;                              //  模式
     int mnTracked, mnTrackedVO;
-    vector<cv::KeyPoint> mvIniKeys;
-    vector<int> mvIniMatches;
-    int mState;
+    vector<cv::KeyPoint> mvIniKeys;// 初始化参考帧关键点
+    vector<int> mvIniMatches;// 匹配点
+    int mState;//tracker状态
 
-    Map* mpMap;
+    Map* mpMap;// 地图
 
-    std::mutex mMutex;
+    std::mutex mMutex;// 访问 tracker 类 的数据线程锁
 };
 
 } //namespace ORB_SLAM
