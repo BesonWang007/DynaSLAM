@@ -1,31 +1,9 @@
 /*
  *  Regionprops
  *  Copyright 2015 Andrea Pennisi
- *
- *  This file is part of Regionprops and it is distributed under the terms of the
- *  GNU Lesser General Public License (Lesser GPL)
- *
- *
- *
- *  Regionprops is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU Lesser General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- *
- *  Regionprops is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public License
- *  along with Regionprops.  If not, see <http://www.gnu.org/licenses/>.
- *
- *
- *  Regionprops has been written by Andrea Pennisi
- *
- *  Please, report suggestions/comments/bugs to
- *  andrea.pennisi@gmail.com
- *
+ * 联通域====区域属性 面积 周长 矩 矩形框 多边形框 凸包 旋转矩阵 等
+ * matlab 的 Regionprops  https://blog.csdn.net/langb2014/article/details/49886787
+   c++ 实现 
  */
 
 #ifndef REGION_H
@@ -42,7 +20,7 @@ class Region {
         Region() {}
         /**
          * @brief Area
-         * @return return area
+         * @return return area  返回 区域面积
          */
         inline double Area() const
         {
@@ -54,7 +32,7 @@ class Region {
          */
         inline void setArea(const double &_area)
         {
-            area = _area;
+            area = _area;// 设置 区域面积
         }
         /**
          * @brief Perimeter
@@ -62,7 +40,7 @@ class Region {
          */
         inline double Perimeter() const
         {
-            return perimeter;
+            return perimeter; // 返回 区域周长
         }
         /**
          * @brief setPerimeter set perimeter to _perimeter
@@ -70,7 +48,7 @@ class Region {
          */
         inline void setPerimeter(const double &_perimeter)
         {
-            perimeter = _perimeter;
+            perimeter = _perimeter;// 设置 区域周长
         }
         /**
          * @brief Moments return moments;
@@ -79,7 +57,7 @@ class Region {
          */
         inline cv::Moments Moments() const
         {
-            return moments;
+            return moments;//返回 区域  图像矩 具有平移、灰度、尺度、旋转不变性 
         }
         /**
          * @brief setMoments set moments to _moments
@@ -87,7 +65,7 @@ class Region {
          */
         inline void setMoments(const cv::Moments &_moments)
         {
-            moments = _moments;
+            moments = _moments;// 设置 区域  图像矩
         }
         /**
          * @brief BoundingBox
@@ -95,7 +73,7 @@ class Region {
          */
         inline cv::Rect BoundingBox() const
         {
-            return boundingBox;
+            return boundingBox; // 返回区域 包围框 ===矩形
         }
         /**
          * @brief setBoundingBox set boundingBox to _boundingBox
@@ -103,7 +81,7 @@ class Region {
          */
         inline void setBoundingBox(const cv::Rect &_boundingBox)
         {
-            boundingBox = _boundingBox;
+            boundingBox = _boundingBox;// 设置区域包围框===
         }
         /**
          * @brief ConvexHull
@@ -111,7 +89,7 @@ class Region {
          */
         inline std::vector<cv::Point> ConvexHull() const
         {
-            return convex_hull;
+            return convex_hull; // 返回图像 凸包，最小包围多边形，多边形包围框
         }
         /**
          * @brief setConvexHull set convex_hull to _convex_hull
@@ -119,7 +97,7 @@ class Region {
          */
         inline void setConvexHull(const std::vector<cv::Point> &_convex_hull)
         {
-            convex_hull = _convex_hull;
+            convex_hull = _convex_hull;// 设置多边形包围框
         }
         /**
          * @brief ConvexArea
@@ -127,7 +105,7 @@ class Region {
          */
         inline double ConvexArea() const
         {
-            return convex_area;
+            return convex_area; // 返回区域 多边形包围框面积
         }
         /**
          * @brief setConvexArea set convex_area to _convex_area
@@ -135,7 +113,7 @@ class Region {
          */
         inline void setConvexArea(const double &_convex_area)
         {
-            convex_area = _convex_area;
+            convex_area = _convex_area;// 设置 区域 多边形包围框面积
         }
         /**
          * @brief Ellipse
@@ -143,7 +121,7 @@ class Region {
          */
         inline cv::RotatedRect Ellipse() const
         {
-            return ellipse;
+            return ellipse;// 返回  区域 旋转矩形， 中心点 长和宽 旋转角度
         }
         /**
          * @brief setEllipse set the ellipse to _ellipse
@@ -151,7 +129,7 @@ class Region {
          */
         inline void setEllipse(const cv::RotatedRect &_ellipse)
         {
-            ellipse = _ellipse;
+            ellipse = _ellipse;//  设置 区域 旋转矩形， 中心点 长和宽 旋转角度
         }
         /**
          * @brief Orientation
@@ -159,7 +137,7 @@ class Region {
          */
         inline double Orientation() const
         {
-            return orientation;
+            return orientation;// 返回 区域 旋转矩形 旋转角度
         }
         /**
          * @brief setOrientation set orientation to _orientation
@@ -167,7 +145,7 @@ class Region {
          */
         inline void setOrientation(const double &_orientation)
         {
-            orientation = _orientation;
+            orientation = _orientation;// 设置 区域 旋转矩形 旋转角度
         }
         /**
          * @brief MinorAxis
@@ -175,7 +153,7 @@ class Region {
          */
         inline double MinorAxis() const
         {
-            return minoraxis_length;
+            return minoraxis_length; // 返回 短轴长
         }
         /**
          * @brief setMinorAxis set minoraxis_length to minor_axis
@@ -191,7 +169,7 @@ class Region {
          */
         inline double MajorAxis() const
         {
-            return majoraxis_length;
+            return majoraxis_length; // 返回长轴长
         }
         /**
          * @brief setMinorAxis set minoraxis_length to minor_axis
@@ -207,7 +185,7 @@ class Region {
          */
         inline std::vector<cv::Point> Approx() const
         {
-            return approx;
+            return approx;// 轮廓 的 近似 多边形
         }
         /**
          * @brief setApprox set approx to _approx
@@ -223,7 +201,7 @@ class Region {
          */
         inline cv::Mat FilledImage() const
         {
-            return filledImage;
+            return filledImage;// 返回填充的区域========
         }
         /**
          * @brief setFilledImage set filledImage to _filledImage
@@ -239,7 +217,7 @@ class Region {
          */
         inline cv::Point Centroid() const
         {
-            return centroid;
+            return centroid;// 区域中心
         }
         /**
          * @brief setCentroid set the centroid to _centroid
@@ -255,7 +233,7 @@ class Region {
          */
         inline double AspectRatio() const
         {
-            return aspect_ratio;
+            return aspect_ratio;// 区域 横纵比=====
         }
         /**
          * @brief setAspectRatio set aspect_ratio to _aspect_ratio
@@ -271,7 +249,7 @@ class Region {
          */
         inline double EquivalentDiameter() const
         {
-            return equi_diameter;
+            return equi_diameter; // 相同面积的 等效圆的直径
         }
         /**
          * @brief setEquivalentDiameter set equi_diameter to _equi_diameter
@@ -287,7 +265,7 @@ class Region {
          */
         inline double Eccentricity() const
         {
-            return eccentricity;
+            return eccentricity;//椭圆偏心率 
         }
         /**
          * @brief setEccentricity set the eccentricity to _eccentricity
@@ -303,7 +281,7 @@ class Region {
          */
         inline double FilledArea() const
         {
-            return filledArea;
+            return filledArea;// 像素数量====
         }
         /**
          * @brief setFilledArea set filledArea to _filledArea
