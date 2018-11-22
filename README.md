@@ -12,6 +12,25 @@ RA-L and IROS, 2018
 
 We provide examples to run the SLAM system in the [TUM dataset](http://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets) as RGB-D or monocular, and in the [KITTI dataset](http://www.cvlibs.net/datasets/kitti/eval_odometry.php) as stereo or monocular.
 
+
+# 运动点 判断准则
+    从关键帧数据库（最多20个）中获取当前帧的参考帧：
+       差异性： 和当前帧 欧拉角度差平方 + 平移量差平方
+               利用各自最大最小值 归一化后，使用加权求和 vDist = 0.7*vDist + 0.3*vRot
+       对差异性进行排序： DESCENDING 降序排列
+       选取 前面 (差异性最大的) 作为参考帧 (最多5个)
+                  
+    
+    // 提取动态点=============这是不是可以考虑用光流来计算动态点===============
+    // 1. 选取 参考帧关键点 深度(0~6m) 计算参考帧下3d点 再变换到 世界坐标系下
+    // 2. 保留 当前帧 到 世界点 向量 与 参考帧到世界点向量 夹角 小于30的点， 不会太近的点
+    // 3. 保留世界点 反投影到当前帧坐标系下深度值 <7m的点
+    // 4. 保留世界点 反投影到当前帧像素坐标系下 浓缩平面( 20～620 & 20～460=)内的点,且该点，当前帧深度!=0
+    // 5. 根据投影点深度值和其 周围20×20领域点当前帧深度值 筛选出 深度差值较小的 领域点 的深度值 来更新当前帧 深度值
+    // 6. 点投影深度值 和 特征点当前帧下深度 差值过大，且该点周围深度方差小，确定该点为运动点
+
+
+
 ## Getting Started
 - Install ORB-SLAM2 prerequisites: C++11 or C++0x Compiler, Pangolin, **OpenCV 2.4.11** and Eigen3  (https://github.com/raulmur/ORB_SLAM2).
 - Install boost libraries with the command `sudo apt-get install libboost-all-dev`.
