@@ -2,7 +2,7 @@
 * This file is part of DynaSLAM.
 * Copyright (C) 2018 Berta Bescos <bbescos at unizar dot es> (University of Zaragoza)
 * For more information see <https://github.com/bertabescos/DynaSLAM>.
-*
+*   	运动点判断 利用深度信息 区域增长扩充 结合mask-rcnn 优化 
 */
 
 #include "Geometry.h"
@@ -451,57 +451,63 @@ cv::Mat Geometry::DepthRegionGrowing(
                   const cv::Mat &imDepth)
 {
 
-    cv::Mat maskG = cv::Mat::zeros(480,640,CV_32F);
+    cv::Mat maskG = cv::Mat::zeros(480,640,CV_32F);// 默认0
 
     if (!vDynPoints.empty())
     {
-        mSegThreshold = 0.20;
+        mSegThreshold = 0.20;// 分割阈值
 
-        for (size_t i(0); i < vDynPoints.size(); i++){
+        for (size_t i(0); i < vDynPoints.size(); i++)
+       {
+           // 动态点=====
             int xSeed = vDynPoints[i].mPoint.x;
             int ySeed = vDynPoints[i].mPoint.y;
+           // 深度点
             const float d = imDepth.at<float>(ySeed,xSeed);
-            if (maskG.at<float>(ySeed,xSeed)!=1. && d > 0)
+            if (maskG.at<float>(ySeed,xSeed) != 1. && d > 0)
             {
+                // 动态点附近，根据深度值 区域增长分割扩充
                 cv::Mat J = RegionGrowing(imDepth,xSeed,ySeed,mSegThreshold);
-                maskG = maskG | J;
+                maskG = maskG | J;// 合并 动态点分割mask
             }
         }
 
-        int dilation_size = 15;
+// 膨胀，选大的
+        int dilation_size = 15;// 膨胀核大小===
         cv::Mat kernel = getStructuringElement(cv::MORPH_ELLIPSE,
                                                cv::Size( 2*dilation_size + 1, 2*dilation_size+1 ),
                                                cv::Point( dilation_size, dilation_size ) );
-        maskG.cv::Mat::convertTo(maskG,CV_8U);
-        cv::dilate(maskG, maskG, kernel);
+        maskG.cv::Mat::convertTo(maskG,CV_8U);// 0～1,1处动，0处静
+        cv::dilate(maskG, maskG, kernel);// 膨胀，15×15核内 选最大的
     }
     else
     {
         maskG.cv::Mat::convertTo(maskG,CV_8U);
     }
 
-    cv::Mat _maskG = cv::Mat::ones(480,640,CV_8U);
-    maskG = _maskG - maskG;
+    cv::Mat _maskG = cv::Mat::ones(480,640,CV_8U);// 全1
+    maskG = _maskG - maskG;// 1-mask， 0处动，1处静
 
     return maskG;
 }
 
 
-// 结合 mask语义分割信息=====================================================
+// 结合 mask语义分割 和 动静mask  获取更全的需要剔除的mask=================
 void Geometry::CombineMasks(
                        const ORB_SLAM2::Frame &currentFrame, 
-                       cv::Mat &mask)
+                       cv::Mat &mask)// 动静mask
 {
-    cv::Mat _maskL = cv::Mat::ones(currentFrame.mImMask.size(),currentFrame.mImMask.type());
-    _maskL = _maskL - currentFrame.mImMask;
+    cv::Mat _maskL = cv::Mat::ones(currentFrame.mImMask.size(),currentFrame.mImMask.type());// 全1
+    _maskL = _maskL - currentFrame.mImMask;// 语义分割mask
+// 原来 mask 1处有物体，0无物体， 取反之后， 0处有物体，1无物体
 
-    cv::Mat _maskG = cv::Mat::ones(mask.size(),mask.type());
-    _maskG = _maskG - mask;
+    cv::Mat _maskG = cv::Mat::ones(mask.size(),mask.type());;// 全1
+    _maskG = _maskG - mask;// 1处动，0处静
 
-    cv::Mat _mask = _maskL | _maskG;
+    cv::Mat _mask = _maskL | _maskG;// 结合 语义分割mask 和 动静mask
 
-    cv::Mat __mask = cv::Mat::ones(_mask.size(),_mask.type());
-    __mask = __mask - _mask;
+    cv::Mat __mask = cv::Mat::ones(_mask.size(),_mask.type());// 全1
+    __mask = __mask - _mask;// 1-
     mask = __mask;
 
 }
@@ -734,12 +740,12 @@ void Geometry::FillRGBD(const ORB_SLAM2::Frame &currentFrame,
     cv::Mat imGrayAccumulator = imGray.mul(mask);
     imGrayAccumulator.convertTo(imGrayAccumulator,CV_32F);
     cv::Mat bgr[3];
-    cv::split(imRGB,bgr);
-    cv::Mat imRAccumulator = bgr[2].mul(mask);
+    cv::split(imRGB,bgr);// 分割成三通道 B\G\R
+    cv::Mat imRAccumulator = bgr[2].mul(mask);// R
     imRAccumulator.convertTo(imRAccumulator,CV_32F);
-    cv::Mat imGAccumulator = bgr[1].mul(mask);
+    cv::Mat imGAccumulator = bgr[1].mul(mask);// G
     imGAccumulator.convertTo(imGAccumulator,CV_32F);
-    cv::Mat imBAccumulator = bgr[0].mul(mask);
+    cv::Mat imBAccumulator = bgr[0].mul(mask);//B
     imBAccumulator.convertTo(imBAccumulator,CV_32F);
     cv::Mat imCounter;
     mask.convertTo(imCounter,CV_32F);
@@ -753,7 +759,8 @@ void Geometry::FillRGBD(const ORB_SLAM2::Frame &currentFrame,
     K.at<float>(0,2) = currentFrame.cx;
     K.at<float>(1,2) = currentFrame.cy;
 
-    for (int i(0); i < mDB.mNumElem; i++){
+    for (int i(0); i < mDB.mNumElem; i++)// 数据库中的每一帧
+   {
 
         ORB_SLAM2::Frame refFrame = mDB.mvDataBase[i];
         cv::Mat bgr[3];
@@ -767,14 +774,15 @@ void Geometry::FillRGBD(const ORB_SLAM2::Frame &currentFrame,
 
         int n(0);
         for (int j(0); j < 640*480; j++){
-            int x = (int)vAllPixels.at<float>(j,0);
+            int x = (int)vAllPixels.at<float>(j,0);// 
             int y = (int)vAllPixels.at<float>(j,1);
-            if ((int)refFrame.mImMask.at<uchar>(y,x) == 1){
+            if ((int)refFrame.mImMask.at<uchar>(y,x) == 1)
+           {
                 const float d = refFrame.mImDepth.at<float>(y,x);
                 if (d > 0){
                     vPixels.at<float>(n,0) = vAllPixels.at<float>(j,0);
                     vPixels.at<float>(n,1) = vAllPixels.at<float>(j,1);
-                    mDepth.at<float>(n,0) = 1./d;
+                    mDepth.at<float>(n,0) = 1./d;// 逆深度====
                     n++;
                 }
             }
@@ -791,7 +799,7 @@ void Geometry::FillRGBD(const ORB_SLAM2::Frame &currentFrame,
 
         // Divide by last column
         for (int j(0); j < vMPCurrentFrame.cols; j++)
-        {
+        {// (X/Z，Y/Z，1,1/Z) -----> (X，Y，Z,1)
             vMPCurrentFrame.at<float>(0,j) /= vMPCurrentFrame.at<float>(3,j);
             vMPCurrentFrame.at<float>(1,j) /= vMPCurrentFrame.at<float>(3,j);
             vMPCurrentFrame.at<float>(2,j) /= vMPCurrentFrame.at<float>(3,j);
@@ -801,11 +809,11 @@ void Geometry::FillRGBD(const ORB_SLAM2::Frame &currentFrame,
         cv::Mat matProjDepth = vMPCurrentFrame.row(2);
         cv::Mat aux;
         cv::hconcat(cv::Mat::eye(3,3,CV_32F),cv::Mat::zeros(3,1,CV_32F),aux);
-        cv::Mat matCurrentFrame = K*aux*vMPCurrentFrame;
+        cv::Mat matCurrentFrame = K*aux*vMPCurrentFrame;// 当前帧下点====
 
-        cv::Mat vProjPixels(matCurrentFrame.cols,2,CV_32F);
-        cv::Mat _matProjDepth(matCurrentFrame.cols,1,CV_32F);
-        cv::Mat _vPixels(matCurrentFrame.cols,2,CV_32F);
+        cv::Mat vProjPixels(matCurrentFrame.cols,2,CV_32F);// 投影点 2d
+        cv::Mat _matProjDepth(matCurrentFrame.cols,1,CV_32F);// 投影深度值
+        cv::Mat _vPixels(matCurrentFrame.cols,2,CV_32F);// 当前 像素点2d
 
         int p(0);
         for (int j(0); j < matCurrentFrame.cols; j++)
@@ -813,7 +821,7 @@ void Geometry::FillRGBD(const ORB_SLAM2::Frame &currentFrame,
             float x = matCurrentFrame.at<float>(0,j)/matCurrentFrame.at<float>(2,j);
             float y = matCurrentFrame.at<float>(1,j)/matCurrentFrame.at<float>(2,j);
             bool inFrame = (x > 1 && x < (currentFrame.mImDepth.cols - 1) && y > 1 && y < (currentFrame.mImDepth.rows - 1));
-            if (inFrame && (mask.at<uchar>(y,x) == 0))
+            if (inFrame && (mask.at<uchar>(y,x) == 0))// mask为0=========================================
             {
                 vProjPixels.at<float>(p,0) = x;
                 vProjPixels.at<float>(p,1) = y;
@@ -831,9 +839,9 @@ void Geometry::FillRGBD(const ORB_SLAM2::Frame &currentFrame,
         {
 
 
-            int _x = (int)vPixels.at<float>(j,0);
+            int _x = (int)vPixels.at<float>(j,0);// 当前2d点
             int _y = (int)vPixels.at<float>(j,1);
-            float x = vProjPixels.at<float>(j,0);//x of *
+            float x = vProjPixels.at<float>(j,0);//x of *   // 投影2sd点
             float y = vProjPixels.at<float>(j,1);//y of *
             /*
                 -----------
@@ -993,15 +1001,19 @@ void Geometry::FillRGBD(const ORB_SLAM2::Frame &currentFrame,
 
 void Geometry::GetClosestNonEmptyCoordinates(
                  const cv::Mat &mask, 
-                 const int &x, const int &y, int &_x, int &_y)
+                 const int &x, const int &y, 
+                 int &_x, int &_y)
 {
-    cv::Mat neigbIni(4,2,CV_32F);
+    cv::Mat neigbIni(4,2,CV_32F); // 周围四点
     neigbIni.at<float>(0,0) = -1;
     neigbIni.at<float>(0,1) = 0;
+
     neigbIni.at<float>(1,0) = 1;
     neigbIni.at<float>(1,1) = 0;
+
     neigbIni.at<float>(2,0) = 0;
     neigbIni.at<float>(2,1) = -1;
+
     neigbIni.at<float>(3,0) = 0;
     neigbIni.at<float>(3,1) = 1;
 
@@ -1102,33 +1114,36 @@ bool Geometry::IsInImage(
     return (x >= 0 && x < (image.cols) && y >= 0 && y < image.rows);
 }
 
-// 区域增长==============================
+// 区域增长==================没看懂???====
 cv::Mat Geometry::RegionGrowing(
-             const cv::Mat &im,
-             int &x,int &y,
-             const float &reg_maxdist)
+             const cv::Mat &im,// 深度图
+             int &x,int &y,// 动态点
+             const float &reg_maxdist)//增长分割阈值
 {
 
-    cv::Mat J = cv::Mat::zeros(im.size(),CV_32F);
+    cv::Mat J = cv::Mat::zeros(im.size(),CV_32F);// 全1mask
 
-    float reg_mean = im.at<float>(y,x);
+    float reg_mean = im.at<float>(y,x);// 动态点 处 深度值
     int reg_size = 1;
 
     int _neg_free = 10000;
     int neg_free = 10000;
     int neg_pos = -1;
-    cv::Mat neg_list = cv::Mat::zeros(neg_free,3,CV_32F);
+    cv::Mat neg_list = cv::Mat::zeros(neg_free,3,CV_32F);// 2d点+深度值
 
     double pixdist=0;
 
     //Neighbor locations (footprint)
-    cv::Mat neigb(4,2,CV_32F);
+    cv::Mat neigb(4,2,CV_32F);// 周围4点 
     neigb.at<float>(0,0) = -1;
     neigb.at<float>(0,1) = 0;
+
     neigb.at<float>(1,0) = 1;
     neigb.at<float>(1,1) = 0;
+
     neigb.at<float>(2,0) = 0;
     neigb.at<float>(2,1) = -1;
+
     neigb.at<float>(3,0) = 0;
     neigb.at<float>(3,1) = 1;
 
@@ -1137,7 +1152,7 @@ cv::Mat Geometry::RegionGrowing(
         for (int j(0); j< 4; j++)
         {
             //Calculate the neighbour coordinate
-            int xn = x + neigb.at<float>(j,0);
+            int xn = x + neigb.at<float>(j,0);// 周围4点 
             int yn = y + neigb.at<float>(j,1);
 
             bool ins = ((xn >= 0) && (yn >= 0) && (xn < im.cols) && (yn < im.rows));
@@ -1146,8 +1161,8 @@ cv::Mat Geometry::RegionGrowing(
                 neg_pos ++;
                 neg_list.at<float>(neg_pos,0) = xn;
                 neg_list.at<float>(neg_pos,1) = yn;
-                neg_list.at<float>(neg_pos,2) = im.at<float>(yn,xn);
-                J.at<float>(yn,xn) = 1.;
+                neg_list.at<float>(neg_pos,2) = im.at<float>(yn,xn);// 周围四点 的深度值
+                J.at<float>(yn,xn) = 1.;// 已经处理过
             }
         }
 
@@ -1155,18 +1170,18 @@ cv::Mat Geometry::RegionGrowing(
         if((neg_pos + 10) > neg_free){
             cv::Mat _neg_list = cv::Mat::zeros(_neg_free,3,CV_32F);
             neg_free += 10000;
-            vconcat(neg_list,_neg_list,neg_list);
+            vconcat(neg_list,_neg_list,neg_list);// 扩展矩阵
         }
 
         // Add pixel with intensity nearest to the mean of the region, to the region
         cv::Mat dist;
         for (int i(0); i < neg_pos; i++){
-            double d = abs(neg_list.at<float>(i,2) - reg_mean);
+            double d = abs(neg_list.at<float>(i,2) - reg_mean);// reg_mean: 动态点 处 深度值，与周围点深度值之差
             dist.push_back(d);
         }
         double max;
         cv::Point ind, maxpos;
-        cv::minMaxLoc(dist, &pixdist, &max, &ind, &maxpos);
+        cv::minMaxLoc(dist, &pixdist, &max, &ind, &maxpos);// 深度值差
         int index = ind.y;
 
         if (index != -1)
