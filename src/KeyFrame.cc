@@ -34,7 +34,7 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB):
 {
     mnId=nNextId++;
 
-    F.mIsKeyFrame = true;
+    F.mIsKeyFrame = true;// 置位关键帧标志==============new=============
 
     mGrid.resize(mnGridCols);
     for(int i=0; i<mnGridCols;i++)
