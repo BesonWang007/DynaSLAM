@@ -2,6 +2,26 @@
 
 [[Project]](https://bertabescos.github.io/DynaSLAM/)   [[Paper]](https://arxiv.org/pdf/1806.05620.pdf)
 
+
+
+# 主要思想
+    
+    利用 语义分割信息 和 几何信息得到的 动/静分割信息，剔除部分不可靠的 关键点来使得 跟踪 变得更可靠
+    
+    使用mask-rcnn获取 语义分割信息 
+    
+    使用 运动点 判断准则 获取 动/静 mask
+    
+    结合 语义mask 和 动/静 mask 生成 需要剔除的 mask
+    
+    在构造帧 的时候 对 提取的关键点 进行滤波，删除 不可靠的 关键点，使得 跟踪更可靠
+    
+# 思考
+    
+    1. 是否可以 结合 光流 来生成 动/静 mask ，不过要考虑相机自身的运动引起的光流
+    2. 如果用于导航，仅仅依靠orb关键点，数量不够，是否可以 添加 边缘 关键点检测算法
+
+
 DynaSLAM is a visual SLAM system that is robust in dynamic scenarios for monocular, stereo and RGB-D configurations. Having a static map of the scene allows inpainting the frame background that has been occluded by such dynamic objects.
 
 <img src="imgs/teaser.png" width="900px"/>
@@ -29,6 +49,18 @@ We provide examples to run the SLAM system in the [TUM dataset](http://projects.
     // 5. 根据投影点深度值和其 周围20×20领域点当前帧深度值 筛选出 深度差值较小的 领域点 的深度值 来更新当前帧 深度值
     // 6. 点投影深度值 和 特征点当前帧下深度 差值过大，且该点周围深度方差小，确定该点为运动点
 
+# 代码修改
+    
+    Frame.cc Frame.h   根据传入的 mask 对提取的关键点进行滤波，剔除部分不可靠的点
+    
+    Tracking.cc
+       双目/单目   仅仅依靠 语义mask 过滤关键点
+       RGBD    结合 语义mask  和 动/静mask 来 过滤关键点
+         具体做法  先根据 运动模型 轻量级 跟踪 获取当前帧位姿态，使用 运动点 判断准则 获取 和 动/静mask
+         
+    其他 添加了 c++ 调用 python 程序的 文件
+    双目 左右图的 语义检测，直接将 两张图 拼接在一起 输入到网络，获取的语义结果再分开
+    这样 检测时间上不会增加多少，因为都会缩放到 网络固定的尺寸进行检测，不过检测精度有所损失，但是速度快啊，这个idear赞
 
 
 ## Getting Started
