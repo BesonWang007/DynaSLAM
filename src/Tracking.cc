@@ -707,6 +707,8 @@ void Tracking::Track()
 
 }
 
+    
+    // ===============轻量级别跟踪==========
 void Tracking::LightTrack()
 {
     // Get Map Mutex -> Map cannot be changed
@@ -1167,18 +1169,23 @@ void Tracking::UpdateLastFrame()
     }
 }
 
+    
+    //  ==================轻量级跟踪==========================
 bool Tracking::LightTrackWithMotionModel(bool &bVO)
 {
     ORBmatcher matcher(0.9,true);
 
     // Update last frame pose according to its reference keyframe
     // Create "visual odometry" points if in Localization Mode
-    Frame lastFrameBU = mLastFrame;
-    list<MapPoint*> lpTemporalPointsBU = mlpTemporalPoints;
-    UpdateLastFrame(); //TODO: check out!
+    Frame lastFrameBU = mLastFrame; // 备份上一帧=======
+    list<MapPoint*> lpTemporalPointsBU = mlpTemporalPoints;// 备份临时点====
+// mlpTemporalPoints 临时地图点  "visual odometry" points
+    
+    UpdateLastFrame(); //TODO: check out! 更新上一帧====
 
-    mCurrentFrame.SetPose(mVelocity*mLastFrame.mTcw);
-
+    mCurrentFrame.SetPose(mVelocity*mLastFrame.mTcw);// 按照 匀速模型设置位姿
+    
+// 清空当前帧地图点====
     fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL)); //TODO:Checkout
 
     // Project points seen in previous frame
@@ -1187,12 +1194,14 @@ bool Tracking::LightTrackWithMotionModel(bool &bVO)
         th=15;
     else
         th=7;
+   // 上一帧投影 地图点 到本帧进行匹配=================
     int nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,th,mSensor==System::MONOCULAR);//TODO:Checkout
 
     // If few matches, uses a wider window search
     if(nmatches<20)
     {
         fill(mCurrentFrame.mvpMapPoints.begin(),mCurrentFrame.mvpMapPoints.end(),static_cast<MapPoint*>(NULL));//TODO:Checkout
+         // 阈值加大一些===
         nmatches = matcher.SearchByProjection(mCurrentFrame,mLastFrame,2*th,mSensor==System::MONOCULAR);//TODO:Checkout
     }
 
@@ -1200,7 +1209,7 @@ bool Tracking::LightTrackWithMotionModel(bool &bVO)
         return false;
 
     // Optimize frame pose with all matches
-    Optimizer::PoseOptimization(&mCurrentFrame);
+    Optimizer::PoseOptimization(&mCurrentFrame);// 位姿图优化=======
 
     // Discard outliers
     int nmatchesMap = 0;
@@ -1208,7 +1217,7 @@ bool Tracking::LightTrackWithMotionModel(bool &bVO)
     {
         if(mCurrentFrame.mvpMapPoints[i])
         {
-            if(mCurrentFrame.mvbOutlier[i])
+            if(mCurrentFrame.mvbOutlier[i]) // 剔除外点=====================
             {
                 MapPoint* pMP = mCurrentFrame.mvpMapPoints[i];
 
@@ -1222,6 +1231,8 @@ bool Tracking::LightTrackWithMotionModel(bool &bVO)
                 nmatchesMap++;
         }
     }
+    
+    // 回复原来的帧，不改变=====================
     mLastFrame = lastFrameBU;
     mlpTemporalPoints = lpTemporalPointsBU;
 
@@ -1860,7 +1871,7 @@ bool Tracking::Relocalization(int update)
     }
     else
     {
-
+// 重定位 帧id======记录不记录======如果是未丢失而调用重定位，则无需记录============
         if (update == 0) mnLastRelocFrameId = mCurrentFrame.mnId;
         return true;
     }
