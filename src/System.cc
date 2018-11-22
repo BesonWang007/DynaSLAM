@@ -4,7 +4,7 @@
 * This file is part of DynaSLAM.
 * Copyright (C) 2018 Berta Bescos <bbescos at unizar dot es> (University of Zaragoza)
 * For more information see <https://github.com/bertabescos/DynaSLAM>.
-*
+* 单目双目rgbd 跟踪函数结构改变了，主要需要传入 图像的语义分割mask===============
 */
 
 
@@ -19,7 +19,8 @@ namespace ORB_SLAM2
 {
 
 System::System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor,
-               const bool bUseViewer):mSensor(sensor), mpViewer(static_cast<Viewer*>(NULL)), mbReset(false),mbActivateLocalizationMode(false),
+               const bool bUseViewer):mSensor(sensor), mpViewer(static_cast<Viewer*>(NULL)),
+        mbReset(false),mbActivateLocalizationMode(false),
         mbDeactivateLocalizationMode(false)
 {
     // Output welcome message
@@ -99,7 +100,10 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     mpLoopCloser->SetLocalMapper(mpLocalMapper);
 }
 
-cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const cv::Mat &maskLeft, const cv::Mat &maskRight,const double &timestamp)
+cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, 
+                            const cv::Mat &maskLeft, // 直接传递两个 语义检测mask ===============new==================
+                            const cv::Mat &maskRight,
+                            const double &timestamp)
 {
     if(mSensor!=STEREO)
     {
@@ -107,7 +111,7 @@ cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const
         exit(-1);
     }   
 
-    // Check mode change
+    // Check mode change  模式===
     {
         unique_lock<mutex> lock(mMutexMode);
         if(mbActivateLocalizationMode)
@@ -131,7 +135,7 @@ cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const
         }
     }
 
-    // Check reset
+    // Check reset  模式=== 重置====
     {
     unique_lock<mutex> lock(mMutexReset);
     if(mbReset)
@@ -141,7 +145,10 @@ cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const
     }
     }
 
-    cv::Mat Tcw = mpTracker->GrabImageStereo(imLeft,imRight, maskLeft, maskRight, timestamp);
+  // 跟踪接口变化========================================================
+    cv::Mat Tcw = mpTracker->GrabImageStereo(imLeft,imRight, 
+                                             maskLeft, maskRight, 
+                                             timestamp);
 
     unique_lock<mutex> lock2(mMutexState);
     mTrackingState = mpTracker->mState;
@@ -150,9 +157,13 @@ cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const
     return Tcw;
 }
 
-cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, cv::Mat &mask,
-                          const double &timestamp, cv::Mat &imRGBOut,
-                          cv::Mat &imDOut, cv::Mat &maskOut)
+  // RGBD相机变换========================================================
+cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap,
+                          cv::Mat &mask,    // 语义分割mask 输入
+                          const double &timestamp, 
+                          cv::Mat &imRGBOut, // rgb输出
+                          cv::Mat &imDOut,   // 深度图输出
+                          cv::Mat &maskOut)  // mask输出
 {
     if(mSensor!=RGBD)
     {
@@ -160,7 +171,7 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, cv::Mat &m
         exit(-1);
     }    
 
-    // Check mode change
+    // Check mode change  模式=== 
     {
         unique_lock<mutex> lock(mMutexMode);
         if(mbActivateLocalizationMode)
@@ -184,7 +195,7 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, cv::Mat &m
         }
     }
 
-    // Check reset
+    // Check reset  模式=== 重置====
     {
     unique_lock<mutex> lock(mMutexReset);
     if(mbReset)
@@ -193,8 +204,13 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, cv::Mat &m
         mbReset = false;
     }
     }
-
-    cv::Mat Tcw = mpTracker->GrabImageRGBD(im,depthmap,mask,timestamp,imRGBOut,imDOut,maskOut);
+  // 跟踪接口变化===================  多返回一些信息的
+    cv::Mat Tcw = mpTracker->GrabImageRGBD(im,depthmap,
+                                           mask,          // 语义分割mask 输入
+                                           timestamp,
+                                           imRGBOut,      // rgb输出
+                                           imDOut,        // 深度图输出
+                                           maskOut);      // mask输出
 
     unique_lock<mutex> lock2(mMutexState);
     mTrackingState = mpTracker->mState;
@@ -203,7 +219,9 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, cv::Mat &m
     return Tcw;
 }
 
-cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, cv::Mat &mask,
+cv::Mat System::TrackRGBD(const cv::Mat &im, 
+                          const cv::Mat &depthmap, 
+                          cv::Mat &mask,           // 语义分割mask 输入
                           const double &timestamp)
 {
     if(mSensor!=RGBD)
@@ -212,7 +230,7 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, cv::Mat &m
         exit(-1);
     }
 
-    // Check mode change
+    // Check mode change   模式===
     {
         unique_lock<mutex> lock(mMutexMode);
         if(mbActivateLocalizationMode)
@@ -236,7 +254,7 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, cv::Mat &m
         }
     }
 
-    // Check reset
+    // Check reset    模式=== 重置====
     {
     unique_lock<mutex> lock(mMutexReset);
     if(mbReset)
@@ -245,8 +263,10 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, cv::Mat &m
         mbReset = false;
     }
     }
-
-    cv::Mat Tcw = mpTracker->GrabImageRGBD(im,depthmap,mask,timestamp);
+    // 跟踪接口变化===================加入语义分割mask 输入
+    cv::Mat Tcw = mpTracker->GrabImageRGBD(im,depthmap,
+                                           mask,           // 语义分割mask 输入
+                                           timestamp);
 
     unique_lock<mutex> lock2(mMutexState);
     mTrackingState = mpTracker->mState;
@@ -255,7 +275,10 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, cv::Mat &m
     return Tcw;
 }
 
-cv::Mat System::TrackMonocular(const cv::Mat &im, const cv::Mat &mask, const double &timestamp)
+  // ==============================单目========================
+cv::Mat System::TrackMonocular(const cv::Mat &im, 
+                               const cv::Mat &mask,  // 语义分割mask 输入
+                               const double &timestamp)
 {
     if(mSensor!=MONOCULAR)
     {
@@ -263,7 +286,7 @@ cv::Mat System::TrackMonocular(const cv::Mat &im, const cv::Mat &mask, const dou
         exit(-1);
     }
 
-    // Check mode change
+    // Check mode change    模式=== 
     {
         unique_lock<mutex> lock(mMutexMode);
         if(mbActivateLocalizationMode)
@@ -287,7 +310,7 @@ cv::Mat System::TrackMonocular(const cv::Mat &im, const cv::Mat &mask, const dou
         }
     }
 
-    // Check reset
+    // Check reset  重置====
     {
     unique_lock<mutex> lock(mMutexReset);
     if(mbReset)
@@ -297,7 +320,9 @@ cv::Mat System::TrackMonocular(const cv::Mat &im, const cv::Mat &mask, const dou
     }
     }
 
-    cv::Mat Tcw = mpTracker->GrabImageMonocular(im,mask,timestamp);
+    cv::Mat Tcw = mpTracker->GrabImageMonocular(im,
+                                                mask,        // 语义分割mask 输入
+                                                timestamp);
 
     unique_lock<mutex> lock2(mMutexState);
     mTrackingState = mpTracker->mState;
@@ -319,6 +344,7 @@ void System::DeactivateLocalizationMode()
     mbDeactivateLocalizationMode = true;
 }
 
+  // 地图有大变化=======================
 bool System::MapChanged()
 {
     static int n=0;
