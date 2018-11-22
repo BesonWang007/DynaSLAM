@@ -1,3 +1,8 @@
+/*
+ c++ 调用 python 实现的 mask-rcnn 获取mask分割结果
+ 两张图 拼接成一张，输入网络中，获取分割结果，时间上没太大变化，因为网络输入大小一致
+
+*/
 #include "MaskNet.h"
 #include <iostream>
 #include <fstream>
