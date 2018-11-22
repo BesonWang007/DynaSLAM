@@ -1,18 +1,100 @@
-/**
-* This file is a modified version of ORB-SLAM2.<https://github.com/raulmur/ORB_SLAM2>
-*
-* This file is part of DynaSLAM.
-* Copyright (C) 2018 Berta Bescos <bbescos at unizar dot es> (University of Zaragoza)
-* For more information see <https://github.com/bertabescos/DynaSLAM>.
-*
+/* 
+
+新 idear:
+    单目/双目 依靠语义分割 去除识别出的物体区域(较大可能包含运动的物体)
+    深度     依靠 语义分割信息 和 深度图 几何学 动静mask 剔除 最大可能的 运动物体
+    
+    使用 剔除了 运动点的 特征点进行 定位和 跟踪更可靠
+
+
+跟踪线程 深度 双目初始化位姿 运动模型 关键帧模式 重定位 局部地图跟踪 关键帧
+*This file is part of ORB-SLAM2.
+* 
+* mpMap就是我们整个位姿与地图（可以想象成ORB-SLAM运行时的那个界面世界），
+* MapPoint和KeyFrame都被包含在这个mpMap中。
+* 因此创建这三者对象（地图，地图点，关键帧）时，
+* 三者之间的关系在构造函数中不能缺少。
+* 
+* 另外，由于一个关键帧提取出的特征点对应一个地图点集，
+* 因此需要记下每个地图点的在该帧中的编号；
+* 
+* 同理，一个地图点会被多帧关键帧观测到，
+* 也需要几下每个关键帧在该点中的编号。
+* 
+* 地图点，还需要完成两个运算，第一个是在观测到该地图点的多个特征点中（对应多个关键帧），
+* 挑选出区分度最高的描述子，作为这个地图点的描述子；
+* pNewMP->ComputeDistinctiveDescriptors();
+* 
+* 第二个是更新该地图点平均观测方向与观测距离的范围，这些都是为了后面做描述子融合做准备。
+pNewMP->UpdateNormalAndDepth();
+
+* 
+* 跟踪
+* 每一帧图像 Frame ---> 提取ORB关键点特征 -----> 根据上一帧进行位置估计计算R t (或者通过全局重定位初始化位置)
+* ------> 跟踪局部地图，优化位姿 -------> 是否加入 关键帧
+* 
+* Tracking线程
+* 帧 Frame
+* 1】初始化
+*       单目初始化 MonocularInitialization()
+*       双目初始化 StereoInitialization
+* 
+* 2】相机位姿跟踪P
+*       同时跟踪和定位 同时跟踪与定位，不插入关键帧，局部建图 不工作
+*       跟踪和定位分离 mbOnlyTracking(false)  
+        位姿跟踪 TrackWithMotionModel()  TrackReferenceKeyFrame()  重定位 Relocalization()
+*   
+ a 运动模型（Tracking with motion model）跟踪   速率较快  假设物体处于匀速运动
+      用 上一帧的位姿和速度来估计当前帧的位姿使用的函数为TrackWithMotionModel()。
+      这里匹配是通过投影来与上一帧看到的地图点匹配，使用的是
+      matcher.SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, ...)。
+      
+ b 关键帧模式      TrackReferenceKeyFrame()
+     当使用运动模式匹配到的特征点数较少时，就会选用关键帧模式。即尝试和最近一个关键帧去做匹配。
+     为了快速匹配，本文利用了bag of words（BoW）来加速。
+     首先，计算当前帧的BoW，并设定初始位姿为上一帧的位姿；
+     其次，根据位姿和BoW词典来寻找特征匹配，使用函数matcher.SearchByBoW(KeyFrame *pKF, Frame &F, ...)；
+     匹配到的是参考关键帧中的地图点。
+     最后，利用匹配的特征优化位姿。
+     
+c 通过全局重定位来初始化位姿估计 Relocalization() 
+    假如使用上面的方法，当前帧与最近邻关键帧的匹配也失败了，
+    那么意味着需要重新定位才能继续跟踪。
+    重定位的入口如下： bOK = Relocalization();
+    此时，只有去和所有关键帧匹配，看能否找到合适的位置。
+    首先，计算当前帧的BOW向量，在关键帧词典数据库中选取若干关键帧作为候选。
+         使用函数如下：vector<KeyFrame*> vpCandidateKFs = mpKeyFrameDB->DetectRelocalizationCandidates(&mCurrentFrame);
+    其次，寻找有足够多的特征点匹配的关键帧；最后，利用RANSAC迭代，然后使用PnP算法求解位姿。这一部分也在Tracking::Relocalization() 里
+
+    
+ * 3】局部地图跟踪
+*       更新局部地图 UpdateLocalMap() 更新关键帧和 更新地图点  UpdateLocalKeyFrames()   UpdateLocalPoints
+*       搜索地图点  获得局部地图与当前帧的匹配
+*       优化位姿    最小化重投影误差  3D点-2D点对  si * pi = K * T * Pi = K * exp(f) * Pi 
+* 
+* 4】是否生成关键帧
+*       加入的条件：
+*       很长时间没有插入关键帧
+*       局部地图空闲
+*       跟踪快要跟丢
+*       跟踪地图 的 MapPoints 地图点 比例比较少
+* 
+* 5】生成关键帧
+*       KeyFrame(mCurrentFrame, mpMap, mpKeyFrameDB)
+*       对于双目 或 RGBD摄像头构造一些 MapPoints，为MapPoints添加属性
+* 
+* 进入LocalMapping线程
+* 
+* 
 */
 
 
 #include "Tracking.h"
 
 #include<opencv2/core/core.hpp>
-#include<opencv2/features2d/features2d.hpp>
+#include<opencv2/features2d/features2d.hpp>// orb 特征检测 提取
 #include <unistd.h>
+// user
 #include"ORBmatcher.h"
 #include"FrameDrawer.h"
 #include"Converter.h"
@@ -20,25 +102,43 @@
 #include"Initializer.h"
 
 #include"Optimizer.h"
-#include"PnPsolver.h"
+#include"PnPsolver.h"// 3d-2d点对 求解 R  t
 
 #include<iostream>
-
-#include<mutex>
+#include<mutex>//多线程
 
 
 using namespace std;
 
+// 程序中变量名的第一个字母如果为"m"则表示为类中的成员变量，member
+// 第一个、第二个字母:
+// "p"表示指针数据类型
+// "n"表示int类型
+// "b"表示bool类型
+// "s"表示set类型
+// "v"表示vector数据类型
+// 'l'表示list数据类型
+// "KF"表示KeyPoint数据类型
+
 namespace ORB_SLAM2
 {
 
-Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, Map *pMap, KeyFrameDatabase* pKFDB, const string &strSettingPath, const int sensor):
-    mState(NO_IMAGES_YET), mSensor(sensor), mbOnlyTracking(false), mbVO(false), mpORBVocabulary(pVoc),
-    mpKeyFrameDB(pKFDB), mpInitializer(static_cast<Initializer*>(NULL)), mpSystem(pSys), mpViewer(NULL),
-    mpFrameDrawer(pFrameDrawer), mpMapDrawer(pMapDrawer), mpMap(pMap), mnLastRelocFrameId(0)
+Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, 
+                   FrameDrawer *pFrameDrawer, 
+                   MapDrawer *pMapDrawer,
+                   Map *pMap,
+                   KeyFrameDatabase* pKFDB, 
+                   const string &strSettingPath, 
+                   const int sensor):
+    mState(NO_IMAGES_YET), mSensor(sensor), mbOnlyTracking(false), 
+    mbVO(false), mpORBVocabulary(pVoc),
+    mpKeyFrameDB(pKFDB), mpInitializer(static_cast<Initializer*>(NULL)),
+    mpSystem(pSys), mpViewer(NULL),
+    mpFrameDrawer(pFrameDrawer), mpMapDrawer(pMapDrawer), 
+    mpMap(pMap), mnLastRelocFrameId(0)
 {
     // Load camera parameters from settings file
-
+// 内参数 K 
     cv::FileStorage fSettings(strSettingPath, cv::FileStorage::READ);
     float fx = fSettings["Camera.fx"];
     float fy = fSettings["Camera.fy"];
@@ -51,7 +151,7 @@ Tracking::Tracking(System *pSys, ORBVocabulary* pVoc, FrameDrawer *pFrameDrawer,
     K.at<float>(0,2) = cx;
     K.at<float>(1,2) = cy;
     K.copyTo(mK);
-
+// 畸变参数 =====
     cv::Mat DistCoef(4,1,CV_32F);
     DistCoef.at<float>(0) = fSettings["Camera.k1"];
     DistCoef.at<float>(1) = fSettings["Camera.k2"];
@@ -153,11 +253,16 @@ void Tracking::SetViewer(Viewer *pViewer)
 }
 
 
-cv::Mat Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRectRight, const cv::Mat &maskLeft, const cv::Mat &maskRight,const double &timestamp)
+cv::Mat Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRectRight, 
+                                  const cv::Mat &maskLeft, 
+                                  const cv::Mat &maskRight,
+                                  const double &timestamp)
 {
     mImGray = imRectLeft;
     cv::Mat imGrayRight = imRectRight;
-    cv::Mat imMaskLeft = maskLeft;
+    
+    
+    cv::Mat imMaskLeft = maskLeft;  // 左右图 语义分割 mask===================
     cv::Mat imMaskRight = maskRight;
 
     if(mImGray.channels()==3)
@@ -187,15 +292,21 @@ cv::Mat Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRe
         }
     }
 
-    cv::Mat _mImGray = mImGray.clone();
-    mImGray = mImGray*0;
-    _mImGray.copyTo(mImGray,imMaskLeft);
+// ====================仅仅保留mask内的图像====================================================
+    cv::Mat _mImGray = mImGray.clone(); // 左图
+    mImGray = mImGray*0;// 置0
+    _mImGray.copyTo(mImGray,imMaskLeft);// 仅仅保留mask内的图像=========================
 
-    cv::Mat _imGrayRight = imGrayRight.clone();
+    cv::Mat _imGrayRight = imGrayRight.clone();// 右图
     imGrayRight = imGrayRight*0;
-    _imGrayRight.copyTo(imGrayRight,imMaskRight);
+    _imGrayRight.copyTo(imGrayRight,imMaskRight);// 仅仅保留mask内的图像=========================
 
-    mCurrentFrame = Frame(mImGray,imGrayRight,imMaskLeft,imMaskRight,timestamp,mpORBextractorLeft,mpORBextractorRight,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
+    
+    mCurrentFrame = Frame(mImGray,imGrayRight,
+                          imMaskLeft,// 左右图 语义分割 mask===================
+                          imMaskRight,
+                          timestamp,mpORBextractorLeft,mpORBextractorRight,
+                          mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
 
     Track();
 
@@ -203,14 +314,17 @@ cv::Mat Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRe
 }
 
 
-cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, cv::Mat &mask,
-                                const double &timestamp, cv::Mat &imRGBOut,
-                                cv::Mat &imDOut, cv::Mat &maskOut)
+cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, 
+                                cv::Mat &mask,//  输入语义分割 mask=
+                                const double &timestamp, 
+                                cv::Mat &imRGBOut,// 输出图
+                                cv::Mat &imDOut, 
+                                cv::Mat &maskOut)
 {
     mImGray = imRGB;
     cv::Mat imDepth = imD;
-    cv::Mat imMask = mask;
-    cv::Mat _imRGB = imRGB;
+    cv::Mat imMask = mask; //  语义分割 mask===================
+    cv::Mat _imRGB = imRGB;// rgb图
 
     if(mImGray.channels()==3)
     {
@@ -228,40 +342,49 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, cv::Mat
     }
 
     if((fabs(mDepthMapFactor-1.0f)>1e-5) || imDepth.type()!=CV_32F)
-        imDepth.convertTo(imDepth,CV_32F,mDepthMapFactor);
+        imDepth.convertTo(imDepth,CV_32F,mDepthMapFactor);// 深度图按尺度 缩放
 
-    mCurrentFrame = Frame(mImGray,imDepth,imMask,_imRGB,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
+    mCurrentFrame = Frame(mImGray,imDepth,
+                          imMask,// 语义分割 mask===================
+                          _imRGB,// 输入RGB
+                          timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
 
-    LightTrack();
+    LightTrack();// 新添加的函数=======轻量级跟踪=======================
 
     imRGBOut = _imRGB;
 
     if (!mCurrentFrame.mTcw.empty())
     {
-        mGeometry.GeometricModelCorrection(mCurrentFrame,imDepth,imMask);
+        // 结合动态点和人像 更新 imMask   轻量级跟踪 几何3的特征判断运动点======
+        mGeometry.GeometricModelCorrection(mCurrentFrame,imDepth,imMask);// 标记为0的为 运动物体,1为不运动物体
     }
+    
+    // 去除 imMask 内的关键点=====================
+    mCurrentFrame = Frame(mImGray,imDepth,
+                          imMask, // 构造帧的时候，仅仅保留 mask为1的地方的 关键点
+                          imRGBOut,
+                          timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
 
-    mCurrentFrame = Frame(mImGray,imDepth,imMask,imRGBOut,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
+    Track();// 进行跟踪 ======
 
-    Track();
+    mGeometry.InpaintFrames(mCurrentFrame, mImGray, imDepth, imRGBOut, imMask);// 更新深度图
 
-    mGeometry.InpaintFrames(mCurrentFrame, mImGray, imDepth, imRGBOut, imMask);
-
-    mGeometry.GeometricModelUpdateDB(mCurrentFrame);
+    mGeometry.GeometricModelUpdateDB(mCurrentFrame);// 更新数据库================
 
     imDOut = imDepth;
-    imDepth.convertTo(imDOut,CV_16U,1./mDepthMapFactor);
-    maskOut = imMask;
+    imDepth.convertTo(imDOut,CV_16U,1./mDepthMapFactor);// 深度图=====
+    maskOut = imMask;// 
 
     return mCurrentFrame.mTcw.clone();
 }
 
-cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, cv::Mat &mask,
+cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, 
+                                cv::Mat &mask,
                                 const double &timestamp)
 {
     mImGray = imRGB;
     cv::Mat imDepth = imD;
-    cv::Mat imMask = mask;
+    cv::Mat imMask = mask;// 语义分割 mask===================
 
     if(mImGray.channels()==3)
     {
@@ -281,17 +404,21 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, cv::Mat
     if((fabs(mDepthMapFactor-1.0f)>1e-5) || imDepth.type()!=CV_32F)
         imDepth.convertTo(imDepth,CV_32F,mDepthMapFactor);
 
-    mCurrentFrame = Frame(mImGray,imDepth,imMask,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
+    mCurrentFrame = Frame(mImGray,imDepth,
+                          imMask,// 语义分割 mask===================
+                          timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
 
-    LightTrack();
+    LightTrack();// 新添加的函数=======轻量级跟踪=======================
 
     mGeometry.GeometricModelCorrection(mCurrentFrame,mImGray,imMask);
 
-    mCurrentFrame = Frame(mImGray,imDepth,imMask,timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
+    mCurrentFrame = Frame(mImGray,imDepth,
+                          imMask,
+                          timestamp,mpORBextractorLeft,mpORBVocabulary,mK,mDistCoef,mbf,mThDepth);
 
     Track();
 
-    mGeometry.GeometricModelUpdateDB(mCurrentFrame);
+    mGeometry.GeometricModelUpdateDB(mCurrentFrame);// 更新几何学 数据库=====
 
     return mCurrentFrame.mTcw.clone();
 }
@@ -316,6 +443,7 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const cv::Mat &mask, con
             cvtColor(mImGray,mImGray,CV_BGRA2GRAY);
     }
 
+    // 依靠语义mask 剔除掉 运动的物体==========
     cv::Mat _mImGray = mImGray.clone();
     mImGray = mImGray*0;
     _mImGray.copyTo(mImGray,imMask);
