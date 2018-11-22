@@ -3,7 +3,7 @@
 *
 * Copyright (C) 2018 Berta Bescos <bbescos at unizar dot es> (University of Zaragoza)
 * For more information see <https://github.com/bertabescos/DynaSLAM>.
-*
+* c++ 调用 python 实现的 mask-rcnn 获取mask分割结果
 */
 
 #include "MaskNet.h"
