@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 #  Mask类  mask-rcnn网络初始化 获取结果mask
+# https://github.com/Ewenwan/Mask_RCNN
 import os
 import sys
 import random
@@ -81,8 +82,10 @@ class Mask:
 	i = 0
 	mask = np.zeros((h,w))
 	for roi in r['rois']:
+		# 网络输入 M×N×3 三通道彩色图
+		# 网扩输出 M×N×l l个识别出来的物体，内容为0/1 的mask
 		if self.class_names[r['class_ids'][i]] == 'person':
-			image_m = r['masks'][:,:,i]
+			image_m = r['masks'][:,:,i] # 人的结果
 			mask[image_m == 1] = 1.
 		if self.class_names[r['class_ids'][i]] == 'bicycle':
 			image_m = r['masks'][:,:,i]
